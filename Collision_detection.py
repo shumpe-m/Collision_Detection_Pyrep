@@ -76,8 +76,9 @@ class CollisionDetectionEnv(PyrepEnv):
                 [self.pr.step() for _ in range(100)]
                 pos, ori = self._get_state('Obj')
                 # Cuboidを消去してstatic=Trueにする。
-                pos = [-0.03972268, 0.04886978,  0.04775401]
-                ori = [ 0.07349248, -0.66818905,  0.74345249]
+                # cuboid: [0.00848433 0.00054913 0.06205115] [0.18771245 0.04388599 0.72973675]
+                #pos = [-0.03972268, 0.04886978,  0.04775401]
+                #ori = [ 0.07349248, -0.66818905,  0.74345249]
                 color = [0.1, 0.1, 1] if self.num_obj == obj + 1 else [0.1, 1, 0.1]
                 self._create_cuboid(pos = pos, ori = ori, color = color, static = True, obj = obj)
                 Object.remove(Shape('Obj'))
@@ -106,27 +107,29 @@ class CollisionDetectionEnv(PyrepEnv):
     def _collision_detection(self):
         #pos_cube, ori_cube = self._get_state('Obj' + str(self.num_obj - 1))
         color = [0.1, 0.1, 1]
-        for num_obj in range(2):
-            pos, ori = self._chopstick_position(num_obj)
-            self._create_chopsticks(pos = pos, ori = ori, color = color, static = True, obj = num_obj)
-            print('Collision Detection',Shape('chopsticks' + str(num_obj)).check_collision())
+        for num_chop in range(5):
+            for num_obj in range(2):
+                pos, ori = self._chopstick_position(num_obj, num_chop)
+                self._create_chopsticks(pos = pos, ori = ori, color = color, static = True, obj = num_obj, chop = num_chop)
+                print('Collision Detection',Shape('chopsticks' + str(num_chop) + str(num_obj)).check_collision())
         [self.pr.step() for _ in range(7000)]
             
         
-    def _create_chopsticks(self, pos, ori, color, static, obj):
+    def _create_chopsticks(self, pos, ori, color, static, obj, chop):
         chopstick = Shape.create(type = PrimitiveShape.CYLINDER,
                                        mass = 0.01,
                                        size = self.chopstick_size,
                                        color = color,
                                        static = static, respondable=True)
-        chopstick.set_name('chopsticks' + str(obj))
+        chopstick.set_name('chopsticks' + str(chop) + str(obj))
         chopstick.set_bullet_friction(1.)
         chopstick.set_position(pos)
         chopstick.set_orientation(ori)
         [self.pr.step() for _ in range(200)]
     
-    def _chopstick_position(self, obj):
+    def _chopstick_position(self, obj, chop):
         pos_cube, ori_cube = self._get_state('Obj' + str(self.num_obj - 1))
+        print('Floor:',Shape('Obj' + str(self.num_obj - 1)).get_orientation(Shape('Floor')))
         print('cuboid:', pos_cube, ori_cube)
         sign = 1 if obj == 0 else -1
         # オブジェクトの角度によって座標が変化
@@ -135,17 +138,24 @@ class CollisionDetectionEnv(PyrepEnv):
         # height = 箸の先端がキューブの底面と同じ長さになるように設定する変数 z
         wide = sign * (self.Cuboid_size[0] / 2 + self.chopstick_size[1] / 2)
         height = (self.chopstick_size[2] / 2 - self.Cuboid_size[2] / 2)
-        grasp = 0.06
+        grasp = self.Cuboid_size[1] / 4 * (chop - 2)
+        ori = ori_cube
+        
+        x = pos_cube[0] + wide
+        y = pos_cube[1] + height
+        z = pos_cube[2] + grasp
         #grasp = (self.chopstick_size[2] / 2 - self.Cuboid_size[2])
         # [2]0k
+        
         pos_x = pos_cube[0] + wide * np.cos(ori_cube[2]) * np.cos(ori_cube[1]) + grasp * -1 * np.sin(ori_cube[2]) + height * np.sin(ori_cube[1])
         pos_y = pos_cube[1] + wide * np.sin(ori_cube[2]) + grasp * np.cos(ori_cube[2]) * np.cos(ori_cube[0]) + height * -1 * np.sin(ori_cube[0])
         pos_z = pos_cube[2] + wide * -1 * np.sin(ori_cube[1]) + grasp * np.sin(ori_cube[0]) + height * np.cos(ori_cube[0]) * np.cos(ori_cube[1])
         #pos_y = pos_cube[1]
         #pos_z = pos_cube[2]
+        
 
         print('chopstick:', [pos_x, pos_y, pos_z], ori_cube)
-        return [pos_x, pos_y, pos_z], ori_cube
+        return [pos_x, pos_y, pos_z], ori
         
         
     def reset(self):
@@ -156,7 +166,7 @@ class CollisionDetectionEnv(PyrepEnv):
 if __name__ == '__main__':
     scene = 'assets/collision_detection.ttt'
     abs_scene = osp.join(osp.dirname(osp.abspath(__file__)), scene)
-    env = CollisionDetectionEnv(scene_file=abs_scene, headless=False, num_obj = 1)
+    env = CollisionDetectionEnv(scene_file=abs_scene, headless=False, num_obj = 4)
 
     env._arrangement()
     env._collision_detection()
