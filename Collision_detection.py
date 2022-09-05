@@ -110,7 +110,7 @@ class CollisionDetectionEnv(PyrepEnv):
                 if Shape('chopsticks' + str(num_chop) + str(num_obj)).check_collision():
                     Object.remove(Shape('chopsticks' + str(num_chop) + str(num_obj)))
                     self._create_chopsticks(pos = pos, ori = ori, color = [1., 0.1, 0.1], static = True, obj = num_obj, chop = num_chop)
-        [self.pr.step() for _ in range(5000)]
+        [self.pr.step() for _ in range(7000)]
             
         
     def _create_chopsticks(self, pos, ori, color, static, obj, chop):
@@ -176,6 +176,6 @@ if __name__ == '__main__':
     env._arrangement()
     env._collision_detection()
     
-    input('press Enter.')
+    #input('press Enter.')
 
     env.shutdown()
