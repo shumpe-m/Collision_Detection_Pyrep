@@ -61,7 +61,6 @@ class CollisionDetectionEnv(PyrepEnv):
 
     def _get_state(self, obj_name):
         return Shape(obj_name).get_position(), Shape(obj_name).get_orientation()
-    
 
     def _arrangement(self):
         # terminalで'yes'が入力されるまで繰り返す
@@ -72,7 +71,6 @@ class CollisionDetectionEnv(PyrepEnv):
                 # size = list(np.random.uniform(self.obj_size_min, self.obj_size_max))
                 pre_pos = list(np.random.uniform(self.position_min, self.position_max))
                 pre_ori = list(np.random.uniform(self.orientation_min, self.orientation_max))
-                #pre_ori = [3.14,3.14,0]
                 # 上からCuboidを落とす
                 self._create_cuboid(pos = pre_pos, ori = pre_ori, color = [0.1, 0.7, 0.1], static = False)
                 [self.pr.step() for _ in range(100)]
@@ -82,6 +80,8 @@ class CollisionDetectionEnv(PyrepEnv):
                 self._create_cuboid(pos = pos, ori = ori, color = color, static = True, obj = obj)
                 Object.remove(Shape('Obj'))
                 [self.pr.step() for _ in range(40)]
+            
+            
             response = input('>The arrangement is Ok? (yes or no)')
             if response == 'yes':
                 self.done = True
@@ -100,33 +100,59 @@ class CollisionDetectionEnv(PyrepEnv):
         cuboid.set_position(pos)
         cuboid.set_orientation(ori)
         
-        
+    '''
     def _collision_detection(self):
         color = [0.1, 0.1, 1]
-        for num_chop in range(5):
+        for chop_pos in range(100):
             for num_obj in range(2):
                 pos, ori = self._chopstick_position(num_obj, num_chop)
-                self._create_chopsticks(pos = pos, ori = ori, color = color, static = True, obj = num_obj, chop = num_chop)
-                if Shape('chopsticks' + str(num_chop) + str(num_obj)).check_collision():
-                    Object.remove(Shape('chopsticks' + str(num_chop) + str(num_obj)))
-                    self._create_chopsticks(pos = pos, ori = ori, color = [1., 0.1, 0.1], static = True, obj = num_obj, chop = num_chop)
-        [self.pr.step() for _ in range(7000)]
+                self._create_chopsticks(pos = pos, ori = ori, color = color, static = True, obj = num_obj)
+                if Shape('chopsticks' + str(num_obj)).check_collision():
+                    Object.remove(Shape('chopsticks' + str(num_obj)))
+                    self._create_chopsticks(pos = pos, ori = ori, color = [1., 0.1, 0.1], static = True, obj = num_obj)
+        [self.pr.step() for _ in range(5000)]
+    '''
+    def _collision_detection(self):
+        self.division = 100
+        for d in range(self.division):
+            for num_obj in range(2):
+                pos, ori = self._chopstick_position(num_obj, d)
+                if d == 0:
+                    self._create_chopsticks(pos = pos, ori = ori, color = [0.1, 0.1, 1], static = True, obj = num_obj)
+                else:
+                    Shape('chopstick' + str(num_obj)).set_position(pos)
+                    
+                if Shape('chopstick' + str(num_obj)).check_collision():
+                    Shape('chopstick' + str(num_obj)).set_color([1., 0.1, 0.1])
+                    print('Contacted grasp point:' , pos)
+                else:
+                    Shape('chopstick' + str(num_obj)).set_color([0.1, 0.1, 1])
+            [self.pr.step() for _ in range(50)]
+                
             
+            
+        [self.pr.step() for _ in range(1000)]
+
+    
         
-    def _create_chopsticks(self, pos, ori, color, static, obj, chop):
+    def _create_chopsticks(self, pos, ori, color, static, obj):
         chopstick = Shape.create(type = PrimitiveShape.CYLINDER,
                                        mass = 0.01,
                                        size = self.chopstick_size,
                                        color = color,
                                        static = static, respondable=True)
-        chopstick.set_name('chopsticks' + str(chop) + str(obj))
+        chopstick.set_name('chopstick' + str(obj))
         chopstick.set_bullet_friction(1.)
         chopstick.set_position(pos)
         chopstick.set_orientation(ori)
-        [self.pr.step() for _ in range(200)]
-        
+        '''
+        if obj ==1:
+            chopsticks  = [Shape('chopstick%d' % i) for i in range(2)]
+            self.pr.merge_objects(chopsticks)
+        '''
+        #[self.pr.step() for _ in range(100)]
     
-    def _chopstick_position(self, obj, chop):
+    def _chopstick_position(self, obj, d):
         pos_cube, ori_cube = self._get_state('Obj' + str(self.num_obj - 1))
         #print('cuboid:', pos_cube, ori_cube)
         sign = 1 if obj == 0 else -1
@@ -135,7 +161,7 @@ class CollisionDetectionEnv(PyrepEnv):
         # grasp y
         # height = 箸の先端がキューブの底面と同じ長さになるように設定する変数 z
         wide = sign * (self.Cuboid_size[0] / 2 + self.chopstick_size[1] / 2 + 0.0001)
-        grasp = self.Cuboid_size[1] / 4 * (chop - 2)
+        grasp = self.Cuboid_size[1] / self.division * (-self.division / 2 + d)
         height = (self.chopstick_size[2] / 2 - self.Cuboid_size[2] / 2)
         
         rot = self._rot(ori_cube)
@@ -144,9 +170,10 @@ class CollisionDetectionEnv(PyrepEnv):
         pos[0] += pos_cube[0]
         pos[1] += pos_cube[1]
         pos[2] += pos_cube[2]
+
         
+        #print('chopstick:', pos, ori_cube)
         return pos, ori_cube
-    
     
     def _rot(self, ori):
         rot_x = np.array([[1, 0, 0],
@@ -160,8 +187,9 @@ class CollisionDetectionEnv(PyrepEnv):
                        [0, 0, 1]])
         rot = rot_z.dot(rot_y).dot(rot_x)
         
-        return rot  
+        return rot
     
+        
         
     def reset(self):
         self.pr.stop()
